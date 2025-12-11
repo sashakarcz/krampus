@@ -1,38 +1,45 @@
 # Krampus - Santa Sync Server
 
-A full-featured Santa sync server with OIDC authentication, user voting system for binary rules, and a Material-UI web portal.
+A full-featured Santa sync server with OIDC authentication, user voting system for binary rules, and a Material-UI web portal. Single binary deployment with embedded React frontend.
 
 ## Features
 
-- **OIDC Authentication**: Generic OIDC provider support (Google, Okta, Auth0, Keycloak, etc.)
+- **OIDC Authentication**: Generic OIDC provider support (Authentik, Google, Okta, Auth0, Keycloak, etc.) with HS256 and RS256 support
+- **Material-UI Web Portal**: Modern React-based interface for managing all aspects of the server
 - **Voting System**: Users can vote to allowlist or blocklist binaries with configurable threshold
-- **Role-Based Access**: Admin and user roles with different permissions
+- **Role-Based Access Control**: Admin and user roles with different permissions
+- **Machine Management**: Register Santa clients, generate plist configurations, and delete machines
+- **Event Tracking**: View execution events from all enrolled machines
+- **Program Analytics**: Aggregate view of all executed binaries with metadata
 - **Santa Sync Protocol**: Full implementation of the Santa sync protocol (preflight, event upload, rule download, postflight)
-- **Machine Management**: Register Santa clients and generate plist configuration files
-- **RESTful API**: Comprehensive API for managing proposals, rules, machines, and users
-- **SQLite Database**: Lightweight database for rules, votes, and event storage
+- **RESTful API**: Comprehensive API for managing proposals, rules, machines, events, and users
+- **SQLite Database**: Lightweight database for rules, votes, events, and session storage
+- **Single Binary Deployment**: Embedded frontend with no external dependencies
 
 ## Architecture
 
 ### Backend (Go)
 - **Framework**: Gin web framework
 - **Database**: SQLite with comprehensive schema
-- **Authentication**: OIDC + JWT tokens
-- **Services**: OIDC, JWT, Voting, Plist generation
+- **Authentication**: OIDC (HS256/RS256) + JWT tokens with httpOnly cookies
+- **Services**: OIDC, JWT, Voting, Plist generation, Santa sync protocol
 - **Middleware**: Auth validation, admin role checking, CORS
+- **Static Files**: Embedded React frontend via Go embed
 
-### Frontend (To be implemented)
+### Frontend (React)
 - **Framework**: React 18+ with Vite
 - **UI Library**: Material-UI v5
 - **Routing**: React Router v6
 - **State**: Context API for auth state
-- **HTTP Client**: Axios
+- **HTTP Client**: Axios with cookie-based authentication
+- **Pages**: Dashboard, Proposals, Rules, Machines, Events, Programs, Users (admin)
 
 ## Quick Start
 
 ### Prerequisites
-- Go 1.25.5 or higher
-- An OIDC provider (Google, Okta, Auth0, Keycloak, etc.)
+- Go 1.23+ or higher
+- Node.js 18+ and npm (for building the frontend)
+- An OIDC provider (Authentik, Google, Okta, Auth0, Keycloak, etc.)
 
 ### Installation
 
@@ -52,13 +59,31 @@ A full-featured Santa sync server with OIDC authentication, user voting system f
    - `OIDC_REDIRECT_URL`: Callback URL (default: http://localhost:8080/auth/callback)
    - `ADMIN_EMAILS`: Comma-separated list of admin emails
 
-3. **Build and run the server**
+3. **Build the application**
+
+   Using the Makefile:
    ```bash
-   go build -o krampus-server ./server
+   make all
+   ```
+
+   Or manually:
+   ```bash
+   # Build frontend
+   cd client && npm install && npm run build
+
+   # Copy frontend to server static directory
+   cp -r dist/* ../server/static/
+
+   # Build Go binary with embedded frontend
+   cd .. && go build -ldflags="-s -w" -o krampus-server ./server
+   ```
+
+4. **Run the server**
+   ```bash
    ./krampus-server
    ```
 
-   The server will start on port 8080 (configurable via `SERVER_PORT` env var).
+   The server will start on port 8080 (configurable via `SERVER_PORT` env var). Access the web UI at http://localhost:8080
 
 ## Configuration
 

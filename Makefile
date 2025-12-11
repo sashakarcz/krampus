@@ -105,10 +105,8 @@ lint: ## Lint Go code
 	golangci-lint run
 
 # Docker targets
-docker-build: build-frontend ## Build Docker image
-	@echo "Building Docker image..."
-	@rm -rf $(STATIC_DIR)
-	@cp -r $(DIST_DIR) $(STATIC_DIR)
+docker-build: ## Build Docker image
+	@echo "Building Docker image (Frontend built inside container)..."
 	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
 	@echo "Docker image built: $(DOCKER_IMAGE):$(DOCKER_TAG)"
 
