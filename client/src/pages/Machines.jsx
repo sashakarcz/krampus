@@ -27,9 +27,15 @@ const Machines = () => {
   const [loading, setLoading] = useState(true);
   const [openRegister, setOpenRegister] = useState(false);
   const [openPlist, setOpenPlist] = useState(false);
+  const [openMobileConfig, setOpenMobileConfig] = useState(false);
   const [selectedMachine, setSelectedMachine] = useState(null);
   const [registerData, setRegisterData] = useState({ machine_id: '', serial_number: '' });
   const [plistData, setPlistData] = useState({ client_mode: 'MONITOR', upload_interval: 600 });
+  const [mobileConfigData, setMobileConfigData] = useState({
+    client_mode: 'MONITOR',
+    upload_interval: 600,
+    organization_name: ''
+  });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -83,6 +89,31 @@ const Machines = () => {
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       setError('Failed to generate plist');
+      setTimeout(() => setError(''), 5000);
+    }
+  };
+
+  const handleGenerateMobileConfig = async () => {
+    try {
+      const response = await apiClient.post(
+        `/api/machines/${selectedMachine.machine_id}/mobileconfig`,
+        mobileConfigData,
+        { responseType: 'blob' }
+      );
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${selectedMachine.machine_id}.mobileconfig`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setSuccess('Mobileconfig downloaded successfully!');
+      setOpenMobileConfig(false);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error) {
+      setError('Failed to generate mobileconfig');
       setTimeout(() => setError(''), 5000);
     }
   };
@@ -167,18 +198,30 @@ const Machines = () => {
                       </Typography>
                     )}
                   </Box>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<DownloadIcon />}
-                    onClick={() => {
-                      setSelectedMachine(machine);
-                      setOpenPlist(true);
-                    }}
-                    sx={{ mt: 2 }}
-                  >
-                    Generate Plist
-                  </Button>
+                  <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<DownloadIcon />}
+                      onClick={() => {
+                        setSelectedMachine(machine);
+                        setOpenPlist(true);
+                      }}
+                    >
+                      Plist
+                    </Button>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<DownloadIcon />}
+                      onClick={() => {
+                        setSelectedMachine(machine);
+                        setOpenMobileConfig(true);
+                      }}
+                    >
+                      Mobileconfig
+                    </Button>
+                  </Box>
                 </CardContent>
               </Card>
             </Grid>
@@ -239,6 +282,48 @@ const Machines = () => {
           <Button onClick={() => setOpenPlist(false)}>Cancel</Button>
           <Button onClick={handleGeneratePlist} variant="contained">
             Download Plist
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={openMobileConfig} onClose={() => setOpenMobileConfig(false)}>
+        <DialogTitle>Generate Mobileconfig Profile</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Recommended: Use mobileconfig for NorthPole Security Santa (official deployment method)
+          </Typography>
+          <TextField
+            fullWidth
+            select
+            label="Client Mode"
+            value={mobileConfigData.client_mode}
+            onChange={(e) => setMobileConfigData({ ...mobileConfigData, client_mode: e.target.value })}
+            margin="normal"
+          >
+            <MenuItem value="MONITOR">Monitor (allows everything, logs events)</MenuItem>
+            <MenuItem value="LOCKDOWN">Lockdown (blocks unapproved binaries)</MenuItem>
+          </TextField>
+          <TextField
+            fullWidth
+            type="number"
+            label="Upload Interval (seconds)"
+            value={mobileConfigData.upload_interval}
+            onChange={(e) => setMobileConfigData({ ...mobileConfigData, upload_interval: parseInt(e.target.value) })}
+            margin="normal"
+          />
+          <TextField
+            fullWidth
+            label="Organization Name (optional)"
+            value={mobileConfigData.organization_name}
+            onChange={(e) => setMobileConfigData({ ...mobileConfigData, organization_name: e.target.value })}
+            margin="normal"
+            helperText="Your company or organization name"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenMobileConfig(false)}>Cancel</Button>
+          <Button onClick={handleGenerateMobileConfig} variant="contained">
+            Download Mobileconfig
           </Button>
         </DialogActions>
       </Dialog>
