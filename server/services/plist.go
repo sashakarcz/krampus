@@ -6,12 +6,17 @@ import (
 )
 
 // GeneratePlist generates a Santa configuration plist file
-func GeneratePlist(machineID, clientMode, syncBaseURL string, uploadInterval int) string {
+func GeneratePlist(machineID, clientMode, syncBaseURL, machineOwner string, uploadInterval int) string {
 	// Convert client mode to integer
 	// 1 = MONITOR, 2 = LOCKDOWN
 	mode := 1
 	if clientMode == "LOCKDOWN" {
 		mode = 2
+	}
+
+	// Default machine owner if not provided
+	if machineOwner == "" {
+		machineOwner = "admin"
 	}
 
 	plistTemplate := `<?xml version="1.0" encoding="UTF-8"?>
@@ -24,6 +29,8 @@ func GeneratePlist(machineID, clientMode, syncBaseURL string, uploadInterval int
 	<integer>%d</integer>
 	<key>MachineID</key>
 	<string>%s</string>
+	<key>MachineOwner</key>
+	<string>%s</string>
 	<key>FullSyncInterval</key>
 	<integer>%d</integer>
 	<key>EventLogType</key>
@@ -32,8 +39,6 @@ func GeneratePlist(machineID, clientMode, syncBaseURL string, uploadInterval int
 	<string>/var/db/santa/events.pb</string>
 	<key>EnablePageZeroProtection</key>
 	<true/>
-	<key>MachineOwner</key>
-	<string></string>
 	<key>EnableBundles</key>
 	<true/>
 	<key>EnableTransitiveRules</key>
@@ -41,12 +46,12 @@ func GeneratePlist(machineID, clientMode, syncBaseURL string, uploadInterval int
 </dict>
 </plist>`
 
-	return fmt.Sprintf(plistTemplate, syncBaseURL, mode, machineID, uploadInterval)
+	return fmt.Sprintf(plistTemplate, syncBaseURL, mode, machineID, machineOwner, uploadInterval)
 }
 
 // GenerateMobileConfig generates an Apple Configuration Profile (.mobileconfig)
 // for easy Santa configuration deployment
-func GenerateMobileConfig(machineID, clientMode, syncBaseURL, organizationName string, uploadInterval int) string {
+func GenerateMobileConfig(machineID, clientMode, syncBaseURL, organizationName, machineOwner string, uploadInterval int) string {
 	// Convert client mode to integer
 	mode := 1
 	if clientMode == "LOCKDOWN" {
@@ -59,6 +64,11 @@ func GenerateMobileConfig(machineID, clientMode, syncBaseURL, organizationName s
 
 	if organizationName == "" {
 		organizationName = "Krampus Santa Sync"
+	}
+
+	// Default machine owner if not provided
+	if machineOwner == "" {
+		machineOwner = "admin"
 	}
 
 	mobileConfigTemplate := `<?xml version="1.0" encoding="UTF-8"?>
@@ -87,6 +97,8 @@ func GenerateMobileConfig(machineID, clientMode, syncBaseURL, organizationName s
 			<key>ClientMode</key>
 			<integer>%d</integer>
 			<key>MachineID</key>
+			<string>%s</string>
+			<key>MachineOwner</key>
 			<string>%s</string>
 			<key>FullSyncInterval</key>
 			<integer>%d</integer>
@@ -125,6 +137,6 @@ func GenerateMobileConfig(machineID, clientMode, syncBaseURL, organizationName s
 
 	return fmt.Sprintf(mobileConfigTemplate,
 		payloadUUID, organizationName, payloadUUID,
-		syncBaseURL, mode, machineID, uploadInterval,
+		syncBaseURL, mode, machineID, machineOwner, uploadInterval,
 		machineID, machineID, profileUUID, organizationName, profileUUID)
 }

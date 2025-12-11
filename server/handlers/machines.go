@@ -117,6 +117,7 @@ func GeneratePlist(c *gin.Context) {
 	var input struct {
 		ClientMode     string `json:"client_mode" binding:"required"`
 		UploadInterval int    `json:"upload_interval"`
+		MachineOwner   string `json:"machine_owner"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -140,6 +141,7 @@ func GeneratePlist(c *gin.Context) {
 		machineID,
 		input.ClientMode,
 		config.AppConfig.SyncBaseURL,
+		input.MachineOwner,
 		input.UploadInterval,
 	)
 
@@ -156,6 +158,7 @@ func GenerateMobileConfig(c *gin.Context) {
 		ClientMode       string `json:"client_mode" binding:"required"`
 		UploadInterval   int    `json:"upload_interval"`
 		OrganizationName string `json:"organization_name"`
+		MachineOwner     string `json:"machine_owner"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -180,6 +183,7 @@ func GenerateMobileConfig(c *gin.Context) {
 		input.ClientMode,
 		config.AppConfig.SyncBaseURL,
 		input.OrganizationName,
+		input.MachineOwner,
 		input.UploadInterval,
 	)
 

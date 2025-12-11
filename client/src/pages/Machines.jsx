@@ -30,11 +30,16 @@ const Machines = () => {
   const [openMobileConfig, setOpenMobileConfig] = useState(false);
   const [selectedMachine, setSelectedMachine] = useState(null);
   const [registerData, setRegisterData] = useState({ machine_id: '', serial_number: '' });
-  const [plistData, setPlistData] = useState({ client_mode: 'MONITOR', upload_interval: 600 });
+  const [plistData, setPlistData] = useState({
+    client_mode: 'MONITOR',
+    upload_interval: 600,
+    machine_owner: ''
+  });
   const [mobileConfigData, setMobileConfigData] = useState({
     client_mode: 'MONITOR',
     upload_interval: 600,
-    organization_name: ''
+    organization_name: '',
+    machine_owner: ''
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -277,6 +282,14 @@ const Machines = () => {
             onChange={(e) => setPlistData({ ...plistData, upload_interval: parseInt(e.target.value) })}
             margin="normal"
           />
+          <TextField
+            fullWidth
+            label="Machine Owner (email or username)"
+            value={plistData.machine_owner}
+            onChange={(e) => setPlistData({ ...plistData, machine_owner: e.target.value })}
+            margin="normal"
+            helperText="Required by Santa for sync to work"
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenPlist(false)}>Cancel</Button>
@@ -310,6 +323,14 @@ const Machines = () => {
             value={mobileConfigData.upload_interval}
             onChange={(e) => setMobileConfigData({ ...mobileConfigData, upload_interval: parseInt(e.target.value) })}
             margin="normal"
+          />
+          <TextField
+            fullWidth
+            label="Machine Owner (email or username)"
+            value={mobileConfigData.machine_owner}
+            onChange={(e) => setMobileConfigData({ ...mobileConfigData, machine_owner: e.target.value })}
+            margin="normal"
+            helperText="Required by Santa for sync to work"
           />
           <TextField
             fullWidth
