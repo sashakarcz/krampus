@@ -120,6 +120,14 @@ A full-featured Santa sync server with OIDC authentication, user voting system f
 3. Enable "Standard Flow" and "Direct Access Grants"
 4. Use `http://your-keycloak-server/realms/your-realm` as `OIDC_PROVIDER_URL`
 
+#### Authentik
+1. Create a new OAuth2/OpenID Provider
+2. Set redirect URI: `http://localhost:8080/auth/callback`
+3. Configure signing algorithm (HS256 or RS256)
+4. Create an application and link it to the provider
+5. Use `https://your-authentik-server/application/o/your-app/.well-known/openid-configuration` as discovery URL
+6. Set `OIDC_PROVIDER_URL` to `https://your-authentik-server/application/o/your-app/`
+
 ## API Endpoints
 
 ### Authentication
@@ -149,6 +157,14 @@ A full-featured Santa sync server with OIDC authentication, user voting system f
 - `POST /api/machines/:id/plist` - Generate plist configuration
 - `DELETE /api/machines/:id` - Admin: Delete machine
 
+### Events
+- `GET /api/events` - List execution events (filter by `?machine_id=` or `?decision=ALLOW`)
+- Pagination: `?page=1&limit=50`
+
+### Programs
+- `GET /api/programs` - List aggregated program statistics
+- Shows unique binaries with execution counts, allow/block stats, and metadata
+
 ### Users
 - `GET /api/users` - Admin: List all users
 - `GET /api/users/:id` - Admin: Get user details
@@ -161,7 +177,47 @@ A full-featured Santa sync server with OIDC authentication, user voting system f
 - `POST /ruledownload/:machine_id` - Rule download stage
 - `POST /postflight/:machine_id` - Postflight sync stage
 
-## Usage Examples
+## Web Portal
+
+Access the Material-UI web portal at `http://localhost:8080` after starting the server. The portal includes:
+
+### Dashboard
+- Overview statistics (proposals, rules, machines, users)
+- Quick access to all sections
+
+### Proposals
+- View all proposals with voting status
+- Create new proposals for binaries
+- Vote on proposals (ALLOWLIST or BLOCKLIST)
+- Admin: Approve proposals bypassing voting
+
+### Rules
+- View all active allowlist/blocklist rules
+- Filter by policy or rule type
+- Admin: Create and delete rules directly
+
+### Machines
+- View all enrolled Santa clients
+- Register new machines
+- Generate and download plist configurations
+- Admin: Delete machines
+
+### Events
+- View execution events from all machines
+- Filter by machine, decision (ALLOW/BLOCK)
+- Pagination support
+
+### Programs
+- Aggregated view of all executed binaries
+- Execution statistics and metadata
+- Certificate and signing information
+
+### Users (Admin Only)
+- Manage user accounts
+- Update user roles
+- Delete users
+
+## API Usage Examples
 
 ### Create a Proposal
 ```bash
@@ -226,12 +282,15 @@ The voting system allows users to collectively decide on binary allowlist/blockl
 
 ## Santa Client Configuration
 
-After registering a machine and generating a plist:
+After registering a machine and generating a plist or mobileconfig:
 
-1. Download the generated plist file
-2. Copy to Santa client: `/Library/Preferences/com.google.santa.plist`
-3. Restart Santa: `sudo launchctl stop com.google.santa && sudo launchctl start com.google.santa`
-4. Santa will sync with your server using the configured endpoints
+1. Download the generated configuration file
+2. **For plist**: Copy to Santa client: `/Library/Preferences/com.northpolesec.santa.plist`
+3. **For mobileconfig**: Double-click to install the profile (requires admin privileges)
+4. Restart Santa: `sudo launchctl stop com.northpolesec.santa && sudo launchctl start com.northpolesec.santa`
+5. Santa will sync with your server using the configured endpoints
+
+**Note**: NorthPole Security maintains Santa after Google's sunset. Visit [https://github.com/northpolesec/santa](https://github.com/northpolesec/santa) for installation.
 
 ## Database Schema
 
@@ -250,16 +309,26 @@ After registering a machine and generating a plist:
 ```
 krampus/
 ├── server/
-│   ├── main.go                 # Entry point
+│   ├── main.go                 # Entry point with embedded static files
 │   ├── config/                 # Configuration management
 │   ├── database/               # Database connection and migrations
 │   ├── models/                 # Data models
-│   ├── handlers/               # HTTP handlers
+│   ├── handlers/               # HTTP handlers (auth, proposals, rules, etc.)
 │   ├── middleware/             # Auth and admin middleware
-│   └── services/               # Business logic (OIDC, JWT, voting, plist)
-├── client/                     # Frontend (to be implemented)
+│   ├── services/               # Business logic (OIDC, JWT, voting, plist)
+│   └── static/                 # Embedded frontend build artifacts
+├── client/
+│   ├── src/
+│   │   ├── pages/              # Dashboard, Proposals, Rules, Machines, etc.
+│   │   ├── components/         # Layout, auth components
+│   │   ├── contexts/           # AuthContext
+│   │   └── api/                # API client
+│   ├── public/                 # Static assets (logo)
+│   ├── package.json
+│   └── vite.config.js
 ├── database/                   # SQLite database file
 ├── .env                        # Environment configuration
+├── Makefile                    # Build automation
 └── README.md
 ```
 
@@ -284,8 +353,13 @@ krampus/
 
 ### Production Build
 ```bash
-# Build the server
-go build -o krampus-server ./server
+# Build frontend and backend
+make all
+
+# Or manually:
+cd client && npm install && npm run build
+cp -r dist/* ../server/static/
+cd .. && go build -ldflags="-s -w" -o krampus-server ./server
 
 # Run with production config
 export JWT_SECRET=$(openssl rand -base64 32)
@@ -295,6 +369,7 @@ export OIDC_CLIENT_SECRET=your-client-secret
 export OIDC_REDIRECT_URL=https://your-domain.com/auth/callback
 export SYNC_BASE_URL=https://your-domain.com
 export ADMIN_EMAILS=admin@your-domain.com
+export GIN_MODE=release
 
 ./krampus-server
 ```
@@ -324,12 +399,14 @@ server {
 - Verify `OIDC_PROVIDER_URL` is correct and accessible
 - Check client ID and secret are correct
 - Ensure redirect URI is registered with the OIDC provider
+- For Authentik: Ensure signing algorithm (HS256/RS256) is configured
 - Check server logs for detailed error messages
 
 ### Database Errors
 - Ensure `database/` directory exists and is writable
 - Check `DATABASE_PATH` points to correct location
 - Verify SQLite is installed (included in Go sqlite3 driver)
+- Database migrations run automatically on startup
 
 ### Santa Client Can't Sync
 - Verify `SYNC_BASE_URL` is accessible from client machines
@@ -337,20 +414,37 @@ server {
 - Review server logs for sync errors
 - Ensure machine is registered in the database
 
-## Next Steps: Frontend Implementation
+### Frontend Not Loading
+- Verify frontend was built: `ls server/static/index.html`
+- Rebuild if needed: `make frontend` or `cd client && npm run build`
+- Check embedded assets loaded successfully in server logs
+- Clear browser cache and reload
 
-The backend is complete and ready for use via API. To add the web UI:
-
-1. Initialize React project: `npm create vite@latest client -- --template react`
-2. Install dependencies: `cd client && npm install @mui/material @emotion/react @emotion/styled react-router-dom axios`
-3. Implement components as outlined in the plan file at `.claude/plans/eager-beaming-gray.md`
-4. Build frontend: `npm run build`
-5. Embed static files in Go binary using `embed` directive
-6. Serve static files from main.go
+### User Not Admin
+- Check `ADMIN_EMAILS` in `.env` contains user's email
+- User must log in AFTER email is added to `ADMIN_EMAILS`
+- For existing users, manually update database:
+  ```bash
+  sqlite3 database/krampus.db "UPDATE users SET role = 'ADMIN' WHERE email = 'user@example.com'"
+  ```
 
 ## License
 
-This project is provided as-is for use with Google Santa.
+This project is provided as-is for use with NorthPole Security Santa (formerly Google Santa).
+
+## Building and Development
+
+### Build Commands (via Makefile)
+- `make all` - Build frontend and backend
+- `make frontend` - Build frontend only
+- `make backend` - Build backend only
+- `make clean` - Clean build artifacts
+- `make run` - Build and run server
+
+### Development Workflow
+1. Make changes to frontend: `cd client && npm run dev` (dev server on port 5173)
+2. Make changes to backend: Rebuild with `go build ./server`
+3. Production build: `make all` to embed frontend in binary
 
 ## Contributing
 
@@ -358,11 +452,12 @@ Contributions are welcome! Please ensure:
 - Code follows existing patterns
 - Database migrations are included for schema changes
 - API endpoints include proper authentication and validation
+- Frontend components follow Material-UI patterns
 - Tests are added for new features
 
 ## Support
 
 For issues and questions:
-- Check the [Santa documentation](https://santa.dev/)
+- Check the [Santa documentation](https://santa.dev/) or [NorthPole Security Santa](https://github.com/northpolesec/santa)
 - Review server logs for error messages
 - Verify configuration in `.env` file

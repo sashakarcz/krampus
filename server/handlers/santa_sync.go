@@ -14,19 +14,22 @@ import (
 func Preflight(c *gin.Context) {
 	machineID := c.Param("machine_id")
 
+	// Santa can send either JSON or URL-encoded forms
 	var input struct {
-		Hostname      string `json:"primary_user"`
-		OSVersion     string `json:"os_version"`
-		OSBuild       string `json:"os_build"`
-		SantaVersion  string `json:"santa_version"`
-		SerialNumber  string `json:"serial_num"`
-		ClientMode    string `json:"client_mode"`
+		Hostname      string `json:"primary_user" form:"primary_user"`
+		OSVersion     string `json:"os_version" form:"os_version"`
+		OSBuild       string `json:"os_build" form:"os_build"`
+		SantaVersion  string `json:"santa_version" form:"santa_version"`
+		SerialNumber  string `json:"serial_num" form:"serial_num"`
+		ClientMode    string `json:"client_mode" form:"client_mode"`
+		ModelID       string `json:"model_identifier" form:"model_identifier"`
 	}
 
-	if err := c.ShouldBindJSON(&input); err != nil {
-		log.Printf("Preflight parse error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	// Try to bind as form first, then JSON
+	if err := c.ShouldBind(&input); err != nil {
+		log.Printf("Preflight parse error for machine %s: %v", machineID, err)
+		log.Printf("Content-Type: %s", c.GetHeader("Content-Type"))
+		// Continue anyway - Santa might send minimal data
 	}
 
 	// Update or insert machine information

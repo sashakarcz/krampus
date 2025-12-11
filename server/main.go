@@ -132,6 +132,7 @@ func main() {
 			machinesGroup.GET("/:id", handlers.GetMachine)
 			machinesGroup.POST("", handlers.RegisterMachine)
 			machinesGroup.POST("/:id/plist", handlers.GeneratePlist)
+			machinesGroup.POST("/:id/mobileconfig", handlers.GenerateMobileConfig)
 
 			// Admin-only machine routes
 			machinesGroup.DELETE("/:id", middleware.AdminMiddleware(), handlers.DeleteMachine)

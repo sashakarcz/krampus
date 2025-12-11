@@ -148,6 +148,46 @@ func GeneratePlist(c *gin.Context) {
 	c.Data(http.StatusOK, "application/x-plist", []byte(plist))
 }
 
+// GenerateMobileConfig generates and downloads a mobileconfig configuration profile
+func GenerateMobileConfig(c *gin.Context) {
+	machineID := c.Param("id")
+
+	var input struct {
+		ClientMode       string `json:"client_mode" binding:"required"`
+		UploadInterval   int    `json:"upload_interval"`
+		OrganizationName string `json:"organization_name"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate client mode
+	if input.ClientMode != "MONITOR" && input.ClientMode != "LOCKDOWN" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid client mode. Must be MONITOR or LOCKDOWN"})
+		return
+	}
+
+	// Default upload interval if not specified
+	if input.UploadInterval == 0 {
+		input.UploadInterval = 600 // 10 minutes
+	}
+
+	// Generate mobileconfig
+	mobileconfig := services.GenerateMobileConfig(
+		machineID,
+		input.ClientMode,
+		config.AppConfig.SyncBaseURL,
+		input.OrganizationName,
+		input.UploadInterval,
+	)
+
+	// Set headers for file download
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.mobileconfig", machineID))
+	c.Data(http.StatusOK, "application/x-apple-aspen-config", []byte(mobileconfig))
+}
+
 // DeleteMachine deletes a machine (admin only)
 func DeleteMachine(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)

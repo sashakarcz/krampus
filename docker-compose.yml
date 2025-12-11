@@ -6,7 +6,7 @@ services:
     image: krampus-santa-sync:latest
     container_name: krampus
     ports:
-      - "8080:8080"
+      - "8888:8080"
     volumes:
       - ./database:/app/database
     env_file:
