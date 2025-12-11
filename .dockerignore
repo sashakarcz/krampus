@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+
+# Node
+client/node_modules
+client/.vite
+client/dist
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+krampus-server
+
+# Database
+database/*.db
+database/*.db-*
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+README.md
+.env
+backups/
+release/
+*.log
