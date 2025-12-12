@@ -15,21 +15,31 @@ func Preflight(c *gin.Context) {
 	machineID := c.Param("machine_id")
 
 	// Santa can send either JSON or URL-encoded forms
+	// client_mode is sent as integer: 1=MONITOR, 2=LOCKDOWN
 	var input struct {
 		Hostname      string `json:"primary_user" form:"primary_user"`
 		OSVersion     string `json:"os_version" form:"os_version"`
 		OSBuild       string `json:"os_build" form:"os_build"`
 		SantaVersion  string `json:"santa_version" form:"santa_version"`
 		SerialNumber  string `json:"serial_num" form:"serial_num"`
-		ClientMode    string `json:"client_mode" form:"client_mode"`
+		ClientModeInt int    `json:"client_mode" form:"client_mode"`
 		ModelID       string `json:"model_identifier" form:"model_identifier"`
 	}
 
-	// Try to bind as form first, then JSON
+	// Try to bind - Santa sends form-encoded data
 	if err := c.ShouldBind(&input); err != nil {
 		log.Printf("Preflight parse error for machine %s: %v", machineID, err)
 		log.Printf("Content-Type: %s", c.GetHeader("Content-Type"))
+		log.Printf("Raw body preview: %s", c.Request.Body)
 		// Continue anyway - Santa might send minimal data
+	}
+
+	// Convert client mode integer to string for database
+	clientMode := ""
+	if input.ClientModeInt == 1 {
+		clientMode = "MONITOR"
+	} else if input.ClientModeInt == 2 {
+		clientMode = "LOCKDOWN"
 	}
 
 	// Update or insert machine information
@@ -37,15 +47,15 @@ func Preflight(c *gin.Context) {
 		`INSERT INTO machines (machine_id, serial_number, hostname, os_version, os_build, santa_version, client_mode, last_preflight_sync)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
 		 ON CONFLICT(machine_id) DO UPDATE SET
-		   serial_number = excluded.serial_number,
-		   hostname = excluded.hostname,
-		   os_version = excluded.os_version,
-		   os_build = excluded.os_build,
-		   santa_version = excluded.santa_version,
-		   client_mode = excluded.client_mode,
+		   serial_number = COALESCE(excluded.serial_number, serial_number),
+		   hostname = COALESCE(excluded.hostname, hostname),
+		   os_version = COALESCE(excluded.os_version, os_version),
+		   os_build = COALESCE(excluded.os_build, os_build),
+		   santa_version = COALESCE(excluded.santa_version, santa_version),
+		   client_mode = CASE WHEN excluded.client_mode != '' THEN excluded.client_mode ELSE client_mode END,
 		   last_preflight_sync = datetime('now')`,
 		machineID, input.SerialNumber, input.Hostname, input.OSVersion,
-		input.OSBuild, input.SantaVersion, input.ClientMode,
+		input.OSBuild, input.SantaVersion, clientMode,
 	)
 	if err != nil {
 		log.Printf("Failed to update machine: %v", err)
