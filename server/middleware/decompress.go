@@ -27,10 +27,30 @@ func Decompress() gin.HandlerFunc {
 			}
 			c.Request.Body.Close()
 
-			// Try to decompress as raw deflate
-			reader := flate.NewReader(bytes.NewReader(bodyBytes))
-			decompressed, err := io.ReadAll(reader)
-			reader.Close()
+			// Check if it looks like JSON (starts with '{' or '[')
+			if len(bodyBytes) > 0 && (bodyBytes[0] == '{' || bodyBytes[0] == '[') {
+				// Already JSON, no decompression needed
+				c.Request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+				c.Next()
+				return
+			}
+
+			// Try zlib decompression first (deflate with header)
+			zlibReader, err := gzip.NewReader(bytes.NewReader(bodyBytes))
+			if err == nil {
+				decompressed, err := io.ReadAll(zlibReader)
+				zlibReader.Close()
+				if err == nil && len(decompressed) > 0 {
+					c.Request.Body = io.NopCloser(bytes.NewReader(decompressed))
+					c.Next()
+					return
+				}
+			}
+
+			// Try raw deflate
+			flateReader := flate.NewReader(bytes.NewReader(bodyBytes))
+			decompressed, err := io.ReadAll(flateReader)
+			flateReader.Close()
 
 			if err == nil && len(decompressed) > 0 {
 				// Successfully decompressed, use decompressed data

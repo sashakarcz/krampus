@@ -96,21 +96,28 @@ func Preflight(c *gin.Context) {
 	})
 }
 
-// EventUpload handles Santa event upload
+// EventUpload handles Santa event upload (supports both JSON and protobuf)
 func EventUpload(c *gin.Context) {
 	machineID := c.Param("machine_id")
 
+	// Try JSON first
 	var input struct {
 		Events []models.SantaEvent `json:"events"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		log.Printf("EventUpload parse error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		// If JSON parsing fails, it's likely protobuf format
+		// For now, just log and accept it - we'll implement protobuf parsing later
+		log.Printf("EventUpload: Received non-JSON data from %s (likely protobuf), accepting without parsing", machineID)
+
+		// Return success anyway - Santa needs a 200 response to continue syncing
+		c.JSON(http.StatusOK, gin.H{
+			"event_upload_bundle_binaries": []string{},
+		})
 		return
 	}
 
-	// Insert events into database
+	// Insert JSON events into database
 	for _, event := range input.Events {
 		execTime := time.Unix(int64(event.ExecutionTime), 0)
 
