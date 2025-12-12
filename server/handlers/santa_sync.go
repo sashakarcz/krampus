@@ -26,13 +26,17 @@ func Preflight(c *gin.Context) {
 		ModelID       string `json:"model_identifier" form:"model_identifier"`
 	}
 
+	// Log the raw request for debugging
+	log.Printf("Preflight request from %s - Content-Type: %s", machineID, c.GetHeader("Content-Type"))
+
 	// Try to bind - Santa sends form-encoded data
 	if err := c.ShouldBind(&input); err != nil {
 		log.Printf("Preflight parse error for machine %s: %v", machineID, err)
-		log.Printf("Content-Type: %s", c.GetHeader("Content-Type"))
-		log.Printf("Raw body preview: %s", c.Request.Body)
 		// Continue anyway - Santa might send minimal data
 	}
+
+	log.Printf("Parsed preflight data: hostname=%s, os_version=%s, santa_version=%s, client_mode=%d",
+		input.Hostname, input.OSVersion, input.SantaVersion, input.ClientModeInt)
 
 	// Convert client mode integer to string for database
 	clientMode := ""
@@ -42,25 +46,39 @@ func Preflight(c *gin.Context) {
 		clientMode = "LOCKDOWN"
 	}
 
-	// Update or insert machine information
-	_, err := database.DB.Exec(
-		`INSERT INTO machines (machine_id, serial_number, hostname, os_version, os_build, santa_version, client_mode, last_preflight_sync)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-		 ON CONFLICT(machine_id) DO UPDATE SET
-		   serial_number = COALESCE(excluded.serial_number, serial_number),
-		   hostname = COALESCE(excluded.hostname, hostname),
-		   os_version = COALESCE(excluded.os_version, os_version),
-		   os_build = COALESCE(excluded.os_build, os_build),
-		   santa_version = COALESCE(excluded.santa_version, santa_version),
-		   client_mode = CASE WHEN excluded.client_mode != '' THEN excluded.client_mode ELSE client_mode END,
-		   last_preflight_sync = datetime('now')`,
-		machineID, input.SerialNumber, input.Hostname, input.OSVersion,
-		input.OSBuild, input.SantaVersion, clientMode,
-	)
-	if err != nil {
-		log.Printf("Failed to update machine: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update machine"})
-		return
+	// Only update machine if we have meaningful data OR just update the preflight timestamp
+	if clientMode == "" && input.SerialNumber == "" && input.Hostname == "" {
+		// Just update the preflight timestamp
+		_, err := database.DB.Exec(
+			`INSERT INTO machines (machine_id, last_preflight_sync)
+			 VALUES (?, datetime('now'))
+			 ON CONFLICT(machine_id) DO UPDATE SET
+			   last_preflight_sync = datetime('now')`,
+			machineID,
+		)
+		if err != nil {
+			log.Printf("Failed to update preflight timestamp: %v", err)
+		}
+	} else {
+		// Update or insert machine information
+		_, err := database.DB.Exec(
+			`INSERT INTO machines (machine_id, serial_number, hostname, os_version, os_build, santa_version, client_mode, last_preflight_sync)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+			 ON CONFLICT(machine_id) DO UPDATE SET
+			   serial_number = COALESCE(NULLIF(excluded.serial_number, ''), serial_number),
+			   hostname = COALESCE(NULLIF(excluded.hostname, ''), hostname),
+			   os_version = COALESCE(NULLIF(excluded.os_version, ''), os_version),
+			   os_build = COALESCE(NULLIF(excluded.os_build, ''), os_build),
+			   santa_version = COALESCE(NULLIF(excluded.santa_version, ''), santa_version),
+			   client_mode = CASE WHEN excluded.client_mode != '' THEN excluded.client_mode ELSE client_mode END,
+			   last_preflight_sync = datetime('now')`,
+			machineID, input.SerialNumber, input.Hostname, input.OSVersion,
+			input.OSBuild, input.SantaVersion, clientMode,
+		)
+		if err != nil {
+			log.Printf("Failed to update machine: %v (clientMode=%s, clientModeInt=%d)", err, clientMode, input.ClientModeInt)
+			// Don't return error - just log it and continue
+		}
 	}
 
 	// Return sync configuration
