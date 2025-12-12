@@ -34,9 +34,7 @@ func GeneratePlist(machineID, clientMode, syncBaseURL, machineOwner string, uplo
 	<key>FullSyncInterval</key>
 	<integer>%d</integer>
 	<key>EventLogType</key>
-	<string>protobuf</string>
-	<key>EventLogPath</key>
-	<string>/var/db/santa/events.pb</string>
+	<string>json</string>
 	<key>EnablePageZeroProtection</key>
 	<true/>
 	<key>EnableBundles</key>
@@ -103,9 +101,7 @@ func GenerateMobileConfig(machineID, clientMode, syncBaseURL, organizationName, 
 			<key>FullSyncInterval</key>
 			<integer>%d</integer>
 			<key>EventLogType</key>
-			<string>protobuf</string>
-			<key>EventLogPath</key>
-			<string>/var/db/santa/events.pb</string>
+			<string>json</string>
 			<key>EnablePageZeroProtection</key>
 			<true/>
 			<key>EnableBundles</key>

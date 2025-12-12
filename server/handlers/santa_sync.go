@@ -27,7 +27,8 @@ func Preflight(c *gin.Context) {
 	}
 
 	// Log the raw request for debugging
-	log.Printf("Preflight request from %s - Content-Type: %s", machineID, c.GetHeader("Content-Type"))
+	log.Printf("Preflight request from %s - Content-Type: %s, Content-Encoding: %s",
+		machineID, c.GetHeader("Content-Type"), c.GetHeader("Content-Encoding"))
 
 	// Try to bind - Santa sends form-encoded data
 	if err := c.ShouldBind(&input); err != nil {
