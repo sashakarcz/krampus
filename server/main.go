@@ -162,7 +162,7 @@ func main() {
 	}
 
 	// Santa sync protocol endpoints (machine authentication would go here)
-	santaGroup := router.Group("")
+	santaGroup := router.Group("", middleware.Decompress())
 	{
 		santaGroup.POST("/preflight/:machine_id", handlers.Preflight)
 		santaGroup.POST("/eventupload/:machine_id", handlers.EventUpload)
