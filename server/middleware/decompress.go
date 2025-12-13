@@ -77,15 +77,39 @@ func Decompress() gin.HandlerFunc {
 			return
 		}
 
-		var reader io.ReadCloser
-		var err error
+		// Read the original body
+		bodyBytes, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			log.Printf("Decompress middleware: Failed to read body: %v", err)
+			c.AbortWithStatusJSON(400, gin.H{"error": "Failed to read body"})
+			return
+		}
+		c.Request.Body.Close()
 
+		log.Printf("Decompress middleware: Read %d bytes with encoding=%s", len(bodyBytes), encoding)
+
+		var decompressed []byte
 		switch strings.ToLower(encoding) {
 		case "deflate":
-			reader = flate.NewReader(c.Request.Body)
-		case "gzip":
-			reader, err = gzip.NewReader(c.Request.Body)
+			reader := flate.NewReader(bytes.NewReader(bodyBytes))
+			decompressed, err = io.ReadAll(reader)
+			reader.Close()
 			if err != nil {
+				log.Printf("Decompress middleware: Failed to decompress deflate: %v", err)
+				c.AbortWithStatusJSON(400, gin.H{"error": "Failed to decompress deflate"})
+				return
+			}
+		case "gzip":
+			reader, err := gzip.NewReader(bytes.NewReader(bodyBytes))
+			if err != nil {
+				log.Printf("Decompress middleware: Failed to create gzip reader: %v", err)
+				c.AbortWithStatusJSON(400, gin.H{"error": "Failed to decompress gzip"})
+				return
+			}
+			decompressed, err = io.ReadAll(reader)
+			reader.Close()
+			if err != nil {
+				log.Printf("Decompress middleware: Failed to decompress gzip: %v", err)
 				c.AbortWithStatusJSON(400, gin.H{"error": "Failed to decompress gzip"})
 				return
 			}
@@ -95,9 +119,10 @@ func Decompress() gin.HandlerFunc {
 			return
 		}
 
+		log.Printf("Decompress middleware: Successfully decompressed %d -> %d bytes", len(bodyBytes), len(decompressed))
+
 		// Replace the request body with decompressed version
-		defer c.Request.Body.Close()
-		c.Request.Body = reader
+		c.Request.Body = io.NopCloser(bytes.NewReader(decompressed))
 		c.Request.Header.Del("Content-Encoding")
 
 		c.Next()
