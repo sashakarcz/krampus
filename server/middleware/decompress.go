@@ -17,6 +17,7 @@ func Decompress() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		encoding := c.GetHeader("Content-Encoding")
 		contentType := c.GetHeader("Content-Type")
+		log.Printf("Decompress middleware called: Content-Type=%s, Content-Encoding=%s", contentType, encoding)
 
 		// If no encoding header but Content-Type is JSON, check if body is compressed
 		if encoding == "" && strings.Contains(contentType, "json") {
