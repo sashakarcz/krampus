@@ -107,8 +107,17 @@ func EventUpload(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		// If JSON parsing fails, it's likely protobuf format
-		// For now, just log and accept it - we'll implement protobuf parsing later
-		log.Printf("EventUpload: Received non-JSON data from %s (likely protobuf), accepting without parsing", machineID)
+		log.Printf("EventUpload: Received non-JSON data from %s (likely protobuf)", machineID)
+		log.Printf("EventUpload: Content-Type=%s, Content-Encoding=%s",
+			c.GetHeader("Content-Type"), c.GetHeader("Content-Encoding"))
+
+		// Log warning about protobuf not being fully supported yet
+		log.Printf("WARNING: Protobuf event upload is not yet supported. Events from %s are not being stored.", machineID)
+		log.Printf("To see events in Krampus, please reconfigure Santa with EventLogType=json:")
+		log.Printf("  1. Download a new mobileconfig from the Krampus web UI")
+		log.Printf("  2. Remove the old Santa configuration profile")
+		log.Printf("  3. Install the new mobileconfig")
+		log.Printf("  4. Restart Santa: sudo launchctl kickstart -k system/com.northpolesec.santa.daemon")
 
 		// Return success anyway - Santa needs a 200 response to continue syncing
 		c.JSON(http.StatusOK, gin.H{
@@ -117,7 +126,10 @@ func EventUpload(c *gin.Context) {
 		return
 	}
 
+	log.Printf("EventUpload: Received %d JSON events from %s", len(input.Events), machineID)
+
 	// Insert JSON events into database
+	eventCount := 0
 	for _, event := range input.Events {
 		execTime := time.Unix(int64(event.ExecutionTime), 0)
 
@@ -135,7 +147,10 @@ func EventUpload(c *gin.Context) {
 			log.Printf("Failed to insert event: %v", err)
 			continue
 		}
+		eventCount++
 	}
+
+	log.Printf("EventUpload: Successfully stored %d events from %s", eventCount, machineID)
 
 	// Return acknowledgement
 	c.JSON(http.StatusOK, gin.H{
