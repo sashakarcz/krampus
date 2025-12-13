@@ -5,6 +5,7 @@ import (
 	"krampus/server/models"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -27,11 +28,21 @@ func Preflight(c *gin.Context) {
 	}
 
 	// Log the raw request for debugging
+	contentType := c.GetHeader("Content-Type")
+	contentEncoding := c.GetHeader("Content-Encoding")
 	log.Printf("Preflight request from %s - Content-Type: %s, Content-Encoding: %s",
-		machineID, c.GetHeader("Content-Type"), c.GetHeader("Content-Encoding"))
+		machineID, contentType, contentEncoding)
 
-	// Try to bind - Santa sends form-encoded data
-	if err := c.ShouldBind(&input); err != nil {
+	// Santa can send either JSON or form-encoded data
+	// Try JSON first (modern Santa), then fall back to form data
+	var err error
+	if strings.Contains(contentType, "json") {
+		err = c.ShouldBindJSON(&input)
+	} else {
+		err = c.ShouldBind(&input)
+	}
+
+	if err != nil {
 		log.Printf("Preflight parse error for machine %s: %v", machineID, err)
 		// Continue anyway - Santa might send minimal data
 	}
