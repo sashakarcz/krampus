@@ -5,6 +5,7 @@ import (
 	"compress/flate"
 	"compress/gzip"
 	"io"
+	"log"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -27,9 +28,12 @@ func Decompress() gin.HandlerFunc {
 			}
 			c.Request.Body.Close()
 
+			log.Printf("Decompress middleware: Read %d bytes, first byte: 0x%02x", len(bodyBytes), bodyBytes[0])
+
 			// Check if it looks like JSON (starts with '{' or '[')
 			if len(bodyBytes) > 0 && (bodyBytes[0] == '{' || bodyBytes[0] == '[') {
 				// Already JSON, no decompression needed
+				log.Printf("Decompress middleware: Body is already JSON, no decompression needed")
 				c.Request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 				c.Next()
 				return
@@ -41,6 +45,7 @@ func Decompress() gin.HandlerFunc {
 				decompressed, err := io.ReadAll(zlibReader)
 				zlibReader.Close()
 				if err == nil && len(decompressed) > 0 {
+					log.Printf("Decompress middleware: Successfully decompressed with gzip (%d -> %d bytes)", len(bodyBytes), len(decompressed))
 					c.Request.Body = io.NopCloser(bytes.NewReader(decompressed))
 					c.Next()
 					return
@@ -54,9 +59,11 @@ func Decompress() gin.HandlerFunc {
 
 			if err == nil && len(decompressed) > 0 {
 				// Successfully decompressed, use decompressed data
+				log.Printf("Decompress middleware: Successfully decompressed with raw deflate (%d -> %d bytes)", len(bodyBytes), len(decompressed))
 				c.Request.Body = io.NopCloser(bytes.NewReader(decompressed))
 			} else {
 				// Not compressed or failed to decompress, use original data
+				log.Printf("Decompress middleware: Failed to decompress (err=%v), using original data", err)
 				c.Request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 			}
 
