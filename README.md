@@ -2,6 +2,18 @@
 
 A full-featured Santa sync server with OIDC authentication, user voting system for binary rules, and a Material-UI web portal. Single binary deployment with embedded React frontend.
 
+![Login](docs/login.png)
+
+
+![Dashboard](docs/dashboard.png)
+
+
+![Rules](docs/rules.png)
+
+
+![Events](docs/events.png)
+
+
 ## Features
 
 - **OIDC Authentication**: Generic OIDC provider support (Authentik, Google, Okta, Auth0, Keycloak, etc.) with HS256 and RS256 support
