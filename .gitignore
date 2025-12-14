@@ -1,0 +1,36 @@
+# Terraform
+Terraform/envs/prod/terraform.tfvars
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+
+# Go
+krampus-server
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+krampus.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local

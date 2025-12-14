@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  krampus:
+    build: .
+    image: krampus-santa-sync:latest
+    container_name: krampus
+    ports:
+      - "8888:8080"
+    volumes:
+      - ./database:/app/database
+    env_file:
+      - ./.env
+    environment:
+      - DATABASE_PATH=/app/database/krampus.db
+      - SERVER_PORT=8080
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/ping"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    networks:
+      - krampus-network
+
+networks:
+  krampus-network:
+    driver: bridge
